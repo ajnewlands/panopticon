@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 use anyhow::Result;
+use image::GenericImageView;
 use log::*;
 
 use windows::{
@@ -58,7 +59,7 @@ fn arc_points(range: std::ops::Range<i32>) -> Vec<Pos2> {
     points
 }
 
-fn get_audio_interface() -> Result<()> {
+fn get_audio_interface() -> Result<IAudioMeterInformation> {
     unsafe {
         info!("Initializing COM");
         let res = CoInitialize(None);
@@ -99,37 +100,55 @@ fn get_audio_interface() -> Result<()> {
             std::process::exit(1);
         }
 
-        let front_points = arc_points(250..291);
-        let front_right_points = arc_points(290..341);
-        let right_points = arc_points(340..391);
-        let rear_right_points = arc_points(30..91);
-        let rear_left_points = arc_points(90..151);
-        let left_points = arc_points(150..201);
-        let front_left_points = arc_points(200..251);
-
-        let options = eframe::NativeOptions {
-            initial_window_size: Some(egui::vec2(WINDOW_SIZE, WINDOW_SIZE)),
-            ..Default::default()
-        };
-        eframe::run_native(
-            "Panopticon",
-            options,
-            Box::new(|_cc| {
-                Box::new(PanApp {
-                    front_points,
-                    front_right_points,
-                    right_points,
-                    rear_right_points,
-                    rear_left_points,
-                    left_points,
-                    front_left_points,
-                    meter,
-                })
-            }),
-        );
+        Ok(meter)
     }
+}
 
-    Ok(())
+fn get_icon_data() -> Option<eframe::IconData> {
+    let bytes = include_bytes!("../icon/panopticon.png");
+
+    let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+        .expect("Embedded icon must be a valid PNG");
+
+    Some(eframe::IconData {
+        width: image.dimensions().0,
+        height: image.dimensions().1,
+        rgba: image.into_bytes(),
+    })
+}
+
+fn run_ui(meter: IAudioMeterInformation) {
+    let icon_data = get_icon_data();
+
+    let front_points = arc_points(250..291);
+    let front_right_points = arc_points(290..341);
+    let right_points = arc_points(340..391);
+    let rear_right_points = arc_points(30..91);
+    let rear_left_points = arc_points(90..151);
+    let left_points = arc_points(150..201);
+    let front_left_points = arc_points(200..251);
+
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(WINDOW_SIZE, WINDOW_SIZE)),
+        icon_data,
+        ..Default::default()
+    };
+    eframe::run_native(
+        "Panopticon",
+        options,
+        Box::new(|_cc| {
+            Box::new(PanApp {
+                front_points,
+                front_right_points,
+                right_points,
+                rear_right_points,
+                rear_left_points,
+                left_points,
+                front_left_points,
+                meter,
+            })
+        }),
+    );
 }
 
 struct PanApp {
@@ -273,8 +292,12 @@ fn main() {
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .init();
-    if let Err(e) = get_audio_interface() {
-        error!("{:?}", e);
-        std::process::exit(1);
+
+    match get_audio_interface() {
+        Err(e) => {
+            error!("{:?}", e);
+            std::process::exit(1);
+        }
+        Ok(meter) => run_ui(meter),
     }
 }
