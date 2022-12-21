@@ -1,10 +1,10 @@
+#![windows_subsystem = "windows"]
 use anyhow::Result;
 use log::*;
 
 use windows::{
-    core::*, Win32::Media::Audio::Endpoints::*, Win32::Media::Audio::*,
-    Win32::System::Com::StructuredStorage::*, Win32::System::Com::*, Win32::UI::Accessibility::*,
-    Win32::UI::Shell::PropertiesSystem::*, Win32::UI::WindowsAndMessaging::*,
+    core::*, Win32::Media::Audio::Endpoints::IAudioMeterInformation, Win32::Media::Audio::*,
+    Win32::System::Com::*, Win32::UI::WindowsAndMessaging::*,
 };
 
 use eframe::{
